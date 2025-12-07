@@ -84,6 +84,86 @@ class YelpService: ObservableObject {
         return mockMenuItems(for: restaurant)
     }
     
+    // MARK: - Autocomplete Suggestions
+    
+    func getRestaurantSuggestions(for query: String, location: String = "San Francisco, CA") async -> [SearchSuggestion] {
+        guard !query.isEmpty else { return [] }
+        
+        // If API key is configured, use Yelp autocomplete
+        if apiKey != "YOUR_YELP_API_KEY_HERE" {
+            // Yelp doesn't have a direct autocomplete API, so we'll do a quick search
+            // and return restaurant names as suggestions
+            do {
+                let restaurants = try await searchRestaurants(query: query, location: location)
+                return restaurants.prefix(5).map { restaurant in
+                    SearchSuggestion(id: restaurant.id, text: restaurant.name, type: .restaurant)
+                }
+            } catch {
+                return getMockRestaurantSuggestions(for: query)
+            }
+        } else {
+            return getMockRestaurantSuggestions(for: query)
+        }
+    }
+    
+    func getLocationSuggestions(for query: String) async -> [SearchSuggestion] {
+        guard !query.isEmpty else { return getPopularLocations() }
+        
+        // Filter popular locations based on query
+        let popular = getPopularLocations()
+        let filtered = popular.filter { location in
+            location.text.lowercased().contains(query.lowercased())
+        }
+        
+        // If no matches, add the query as a suggestion
+        if filtered.isEmpty && !query.isEmpty {
+            return [SearchSuggestion(id: UUID().uuidString, text: query, type: .location)] + popular.prefix(4)
+        }
+        
+        return filtered.prefix(5)
+    }
+    
+    private func getMockRestaurantSuggestions(for query: String) -> [SearchSuggestion] {
+        let allRestaurants = [
+            "The Local Cafe",
+            "Ocean Breeze Seafood",
+            "Garden Fresh Bistro",
+            "Italian Kitchen",
+            "Sushi House",
+            "Burger Palace",
+            "Taco Fiesta",
+            "Pizza Corner",
+            "Thai Garden",
+            "Mexican Cantina",
+            "BBQ Smokehouse",
+            "Vegetarian Delight",
+            "Steakhouse Prime",
+            "Noodle Bar",
+            "Coffee & Pastries"
+        ]
+        
+        let filtered = allRestaurants.filter { restaurant in
+            restaurant.lowercased().contains(query.lowercased())
+        }
+        
+        return filtered.prefix(5).map { name in
+            SearchSuggestion(id: UUID().uuidString, text: name, type: .restaurant)
+        }
+    }
+    
+    private func getPopularLocations() -> [SearchSuggestion] {
+        return [
+            SearchSuggestion(id: "1", text: "San Francisco, CA", type: .location),
+            SearchSuggestion(id: "2", text: "New York, NY", type: .location),
+            SearchSuggestion(id: "3", text: "Los Angeles, CA", type: .location),
+            SearchSuggestion(id: "4", text: "Chicago, IL", type: .location),
+            SearchSuggestion(id: "5", text: "Seattle, WA", type: .location),
+            SearchSuggestion(id: "6", text: "Boston, MA", type: .location),
+            SearchSuggestion(id: "7", text: "Austin, TX", type: .location),
+            SearchSuggestion(id: "8", text: "Miami, FL", type: .location)
+        ]
+    }
+    
     // MARK: - Mock Data for Development
     
     func mockRestaurants() -> [Restaurant] {

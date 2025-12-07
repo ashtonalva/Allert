@@ -22,9 +22,13 @@ struct ContentView: View {
                     Label("Profile", systemImage: "person.circle")
                 }
         }
+        .preferredColorScheme(.dark)
+        .background(Color.appBackground)
+        .animation(.spring(response: 0.3, dampingFraction: 0.7), value: profileManager.profile.allergies.count)
     }
 }
 
 #Preview {
     ContentView()
+        .environmentObject(ProfileManager())
 }

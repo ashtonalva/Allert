@@ -23,96 +23,129 @@ struct MenuView: View {
     }
     
     var body: some View {
-        VStack {
-            if isLoading {
-                ProgressView("Loading menu...")
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
-            } else if isAnalyzing {
-                VStack(spacing: 16) {
-                    ProgressView(value: analysisProgress, total: 1.0)
-                        .progressViewStyle(LinearProgressViewStyle())
-                    Text("Analyzing ingredients with AI...")
-                        .font(.subheadline)
-                        .foregroundColor(.secondary)
-                    Text("\(Int(analysisProgress * 100))% complete")
-                        .font(.caption)
-                        .foregroundColor(.secondary)
-                }
-                .padding()
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
-            } else {
-                // Tab Selector
-                Picker("Filter", selection: $selectedTab) {
-                    Text("Safe Items (\(filteredItems.safe.count))").tag(0)
-                    Text("Unsafe Items (\(filteredItems.unsafe.count))").tag(1)
-                }
-                .pickerStyle(SegmentedPickerStyle())
-                .padding()
-                
-                // AI Analysis Button
-                Button(action: {
-                    Task {
-                        await analyzeMenuItems()
+        ZStack {
+            Color.appBackground.ignoresSafeArea()
+            
+            VStack {
+                if isLoading {
+                    ProgressView("Loading menu...")
+                        .foregroundColor(Color.appGreen)
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                        .transition(.opacity.combined(with: .scale))
+                } else if isAnalyzing {
+                    VStack(spacing: 16) {
+                        ProgressView(value: analysisProgress, total: 1.0)
+                            .progressViewStyle(LinearProgressViewStyle(tint: Color.appGreen))
+                        Text("Analyzing ingredients with AI...")
+                            .font(.subheadline)
+                            .foregroundColor(Color.appPrimaryText)
+                        Text("\(Int(analysisProgress * 100))% complete")
+                            .font(.caption)
+                            .foregroundColor(Color.appSecondaryText)
                     }
-                }) {
-                    HStack {
-                        Image(systemName: "sparkles")
-                        Text("Analyze Ingredients with AI")
-                    }
-                    .frame(maxWidth: .infinity)
                     .padding()
-                    .background(Color.blue)
-                    .foregroundColor(.white)
-                    .cornerRadius(10)
-                }
-                .padding(.horizontal)
-                
-                // Menu Items List
-                if selectedTab == 0 {
-                    if filteredItems.safe.isEmpty {
-                        VStack(spacing: 16) {
-                            Image(systemName: "checkmark.circle.fill")
-                                .font(.system(size: 50))
-                                .foregroundColor(.green)
-                            Text("No safe items found")
-                                .foregroundColor(.secondary)
-                            Text("All menu items contain allergens from your profile")
-                                .font(.caption)
-                                .foregroundColor(.secondary)
-                                .multilineTextAlignment(.center)
-                                .padding(.horizontal)
-                        }
-                        .frame(maxWidth: .infinity, maxHeight: .infinity)
-                    } else {
-                        List(filteredItems.safe) { item in
-                            MenuItemRow(item: item, isSafe: true, allergies: profileManager.profile.allergies)
-                        }
-                    }
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    .transition(.opacity.combined(with: .scale))
                 } else {
-                    if filteredItems.unsafe.isEmpty {
-                        VStack(spacing: 16) {
-                            Image(systemName: "checkmark.shield.fill")
-                                .font(.system(size: 50))
-                                .foregroundColor(.green)
-                            Text("All items are safe!")
-                                .foregroundColor(.secondary)
-                            Text("No menu items contain allergens from your profile")
-                                .font(.caption)
-                                .foregroundColor(.secondary)
-                                .multilineTextAlignment(.center)
-                                .padding(.horizontal)
+                    // Tab Selector
+                    Picker("Filter", selection: $selectedTab) {
+                        Text("Safe Items (\(filteredItems.safe.count))").tag(0)
+                        Text("Unsafe Items (\(filteredItems.unsafe.count))").tag(1)
+                    }
+                    .pickerStyle(SegmentedPickerStyle())
+                    .padding()
+                    .animation(.spring(response: 0.3, dampingFraction: 0.7), value: selectedTab)
+                    
+                    // AI Analysis Button
+                    Button(action: {
+                        withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
+                            Task {
+                                await analyzeMenuItems()
+                            }
                         }
-                        .frame(maxWidth: .infinity, maxHeight: .infinity)
-                    } else {
-                        List(filteredItems.unsafe) { item in
-                            MenuItemRow(item: item, isSafe: false, allergies: profileManager.profile.allergies)
+                    }) {
+                        HStack {
+                            Image(systemName: "sparkles")
+                                .rotationEffect(.degrees(isAnalyzing ? 360 : 0))
+                                .animation(isAnalyzing ? .linear(duration: 2).repeatForever(autoreverses: false) : .default, value: isAnalyzing)
+                            Text("Analyze Ingredients with AI")
+                        }
+                        .animation(.spring(response: 0.3, dampingFraction: 0.7), value: isAnalyzing)
+                        .frame(maxWidth: .infinity)
+                        .padding()
+                        .background(Color.appGreen)
+                        .foregroundColor(.white)
+                        .cornerRadius(12)
+                    }
+                    .padding(.horizontal)
+                    .scaleEffect(isAnalyzing ? 0.98 : 1.0)
+                    .animation(.spring(response: 0.2, dampingFraction: 0.6), value: isAnalyzing)
+                
+                    // Menu Items List
+                    Group {
+                        if selectedTab == 0 {
+                            if filteredItems.safe.isEmpty {
+                                VStack(spacing: 16) {
+                                    Image(systemName: "checkmark.circle.fill")
+                                        .font(.system(size: 50))
+                                        .foregroundColor(Color.appGreen)
+                                    Text("No safe items found")
+                                        .foregroundColor(Color.appPrimaryText)
+                                    Text("All menu items contain allergens from your profile")
+                                        .font(.caption)
+                                        .foregroundColor(Color.appSecondaryText)
+                                        .multilineTextAlignment(.center)
+                                        .padding(.horizontal)
+                                }
+                                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                                .transition(.opacity.combined(with: .scale))
+                            } else {
+                                List(filteredItems.safe) { item in
+                                    MenuItemRow(item: item, isSafe: true, allergies: profileManager.profile.allergies)
+                                        .listRowBackground(Color.appCardBackground)
+                                }
+                                .scrollContentBackground(.hidden)
+                                .transition(.asymmetric(
+                                    insertion: .move(edge: .trailing).combined(with: .opacity),
+                                    removal: .move(edge: .leading).combined(with: .opacity)
+                                ))
+                            }
+                        } else {
+                            if filteredItems.unsafe.isEmpty {
+                                VStack(spacing: 16) {
+                                    Image(systemName: "checkmark.shield.fill")
+                                        .font(.system(size: 50))
+                                        .foregroundColor(Color.appGreen)
+                                    Text("All items are safe!")
+                                        .foregroundColor(Color.appPrimaryText)
+                                    Text("No menu items contain allergens from your profile")
+                                        .font(.caption)
+                                        .foregroundColor(Color.appSecondaryText)
+                                        .multilineTextAlignment(.center)
+                                        .padding(.horizontal)
+                                }
+                                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                                .transition(.opacity.combined(with: .scale))
+                            } else {
+                                List(filteredItems.unsafe) { item in
+                                    MenuItemRow(item: item, isSafe: false, allergies: profileManager.profile.allergies)
+                                        .listRowBackground(Color.appCardBackground)
+                                }
+                                .scrollContentBackground(.hidden)
+                                .transition(.asymmetric(
+                                    insertion: .move(edge: .trailing).combined(with: .opacity),
+                                    removal: .move(edge: .leading).combined(with: .opacity)
+                                ))
+                            }
                         }
                     }
+                    .animation(.spring(response: 0.4, dampingFraction: 0.8), value: selectedTab)
                 }
             }
         }
         .navigationTitle(restaurant.name)
         .navigationBarTitleDisplayMode(.large)
+        .preferredColorScheme(.dark)
         .task {
             await loadMenu()
         }
@@ -194,6 +227,7 @@ struct MenuItemRow: View {
     let item: MenuItem
     let isSafe: Bool
     let allergies: [Allergy]
+    @State private var appear = false
     
     private var matchingAllergens: [Allergy] {
         MenuFilterService.shared.getMatchingAllergens(for: item, allergies: allergies)
@@ -204,22 +238,25 @@ struct MenuItemRow: View {
             HStack {
                 Text(item.name)
                     .font(.headline)
+                    .foregroundColor(Color.appPrimaryText)
                 
                 Spacer()
                 
                 if isSafe {
                     Image(systemName: "checkmark.circle.fill")
-                        .foregroundColor(.green)
+                        .foregroundColor(Color.appGreen)
+                        .scaleEffect(appear ? 1.0 : 0.5)
                 } else {
                     Image(systemName: "exclamationmark.triangle.fill")
-                        .foregroundColor(.orange)
+                        .foregroundColor(Color.appGreen.opacity(0.7))
+                        .scaleEffect(appear ? 1.0 : 0.5)
                 }
             }
             
             if let description = item.description {
                 Text(description)
                     .font(.subheadline)
-                    .foregroundColor(.secondary)
+                    .foregroundColor(Color.appSecondaryText)
             }
             
             // Show AI-detected ingredients if available
@@ -228,36 +265,41 @@ struct MenuItemRow: View {
                     HStack {
                         Image(systemName: "sparkles")
                             .font(.caption2)
-                            .foregroundColor(.blue)
+                            .foregroundColor(Color.appGreen)
+                            .rotationEffect(.degrees(appear ? 360 : 0))
                         Text("AI Detected Ingredients:")
                             .font(.caption)
                             .fontWeight(.semibold)
-                            .foregroundColor(.blue)
+                            .foregroundColor(Color.appGreen)
                     }
                     Text(aiIngredients.joined(separator: ", "))
                         .font(.caption)
-                        .foregroundColor(.secondary)
+                        .foregroundColor(Color.appSecondaryText)
                         .lineLimit(2)
                 }
                 .padding(.vertical, 4)
                 .padding(.horizontal, 8)
-                .background(Color.blue.opacity(0.1))
+                .background(Color.appGreen.opacity(0.15))
                 .cornerRadius(6)
+                .opacity(appear ? 1.0 : 0.0)
+                .offset(x: appear ? 0 : -20)
             }
             
             if !isSafe && !matchingAllergens.isEmpty {
                 HStack {
                     Text("Contains: ")
                         .font(.caption)
-                        .foregroundColor(.secondary)
-                    ForEach(matchingAllergens) { allergen in
+                        .foregroundColor(Color.appSecondaryText)
+                    ForEach(Array(matchingAllergens.enumerated()), id: \.element.id) { index, allergen in
                         Text(allergen.name)
                             .font(.caption)
                             .padding(.horizontal, 8)
                             .padding(.vertical, 4)
-                            .background(Color.orange.opacity(0.2))
-                            .foregroundColor(.orange)
+                            .background(Color.appGreen.opacity(0.2))
+                            .foregroundColor(Color.appGreen)
                             .cornerRadius(4)
+                            .opacity(appear ? 1.0 : 0.0)
+                            .offset(x: appear ? 0 : 20)
                     }
                 }
             }
@@ -266,10 +308,18 @@ struct MenuItemRow: View {
                 Text(price)
                     .font(.subheadline)
                     .fontWeight(.semibold)
-                    .foregroundColor(.blue)
+                    .foregroundColor(Color.appGreen)
+                    .opacity(appear ? 1.0 : 0.0)
             }
         }
         .padding(.vertical, 4)
+        .opacity(appear ? 1.0 : 0.0)
+        .offset(y: appear ? 0 : 10)
+        .onAppear {
+            withAnimation(.spring(response: 0.5, dampingFraction: 0.8).delay(0.1)) {
+                appear = true
+            }
+        }
     }
 }
 
