@@ -34,6 +34,19 @@ struct MenuItem: Codable, Identifiable {
     var price: String?
     var category: String?
     var ingredients: [String]?
+    var aiDetectedIngredients: [String]? // Ingredients detected by AI analysis
+    
+    // Get all ingredients (explicit + AI-detected)
+    var allIngredients: [String] {
+        var all: Set<String> = []
+        if let explicit = ingredients {
+            all.formUnion(explicit)
+        }
+        if let aiDetected = aiDetectedIngredients {
+            all.formUnion(aiDetected)
+        }
+        return Array(all).sorted()
+    }
     
     // Computed property to check if item is safe
     func isSafe(for allergies: [Allergy]) -> Bool {
@@ -41,6 +54,7 @@ struct MenuItem: Codable, Identifiable {
         
         let itemText = "\(name) \(description ?? "")".lowercased()
         
+        // Check name and description
         for allergy in allergies {
             for keyword in allergy.keywords {
                 if itemText.contains(keyword.lowercased()) {
@@ -49,14 +63,12 @@ struct MenuItem: Codable, Identifiable {
             }
         }
         
-        // Also check ingredients if available
-        if let ingredients = ingredients {
-            let ingredientsText = ingredients.joined(separator: " ").lowercased()
-            for allergy in allergies {
-                for keyword in allergy.keywords {
-                    if ingredientsText.contains(keyword.lowercased()) {
-                        return false
-                    }
+        // Check all ingredients (explicit + AI-detected)
+        let allIngredientsText = allIngredients.joined(separator: " ").lowercased()
+        for allergy in allergies {
+            for keyword in allergy.keywords {
+                if allIngredientsText.contains(keyword.lowercased()) {
+                    return false
                 }
             }
         }
@@ -67,18 +79,18 @@ struct MenuItem: Codable, Identifiable {
     func containsAllergen(_ allergy: Allergy) -> Bool {
         let itemText = "\(name) \(description ?? "")".lowercased()
         
+        // Check name and description
         for keyword in allergy.keywords {
             if itemText.contains(keyword.lowercased()) {
                 return true
             }
         }
         
-        if let ingredients = ingredients {
-            let ingredientsText = ingredients.joined(separator: " ").lowercased()
-            for keyword in allergy.keywords {
-                if ingredientsText.contains(keyword.lowercased()) {
-                    return true
-                }
+        // Check all ingredients
+        let allIngredientsText = allIngredients.joined(separator: " ").lowercased()
+        for keyword in allergy.keywords {
+            if allIngredientsText.contains(keyword.lowercased()) {
+                return true
             }
         }
         

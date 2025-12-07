@@ -6,6 +6,7 @@
 //
 
 import Foundation
+import Combine
 
 class ProfileManager: ObservableObject {
     @Published var profile: UserProfile

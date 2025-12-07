@@ -6,8 +6,9 @@
 //
 
 import Foundation
+import Combine
 
-class YelpService {
+class YelpService: ObservableObject {
     // NOTE: You'll need to get your own Yelp API key from https://www.yelp.com/developers
     // For now, this is a placeholder. Replace with your actual API key.
     private let apiKey = "YOUR_YELP_API_KEY_HERE"
