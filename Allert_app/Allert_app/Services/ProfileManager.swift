@@ -16,7 +16,12 @@ class ProfileManager: ObservableObject {
     init() {
         if let data = UserDefaults.standard.data(forKey: profileKey),
            let decoded = try? JSONDecoder().decode(UserProfile.self, from: data) {
-            self.profile = decoded
+            // Handle backward compatibility - if location is empty, set default
+            var profile = decoded
+            if profile.location.isEmpty {
+                profile.location = "San Francisco, CA"
+            }
+            self.profile = profile
         } else {
             self.profile = UserProfile()
         }
@@ -40,6 +45,11 @@ class ProfileManager: ObservableObject {
     
     func updateName(_ name: String) {
         profile.name = name
+        saveProfile()
+    }
+    
+    func updateLocation(_ location: String) {
+        profile.location = location
         saveProfile()
     }
 }

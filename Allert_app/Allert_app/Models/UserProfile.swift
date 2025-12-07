@@ -10,11 +10,13 @@ import Foundation
 struct UserProfile: Codable, Identifiable {
     var id: UUID
     var name: String
+    var location: String
     var allergies: [Allergy]
     
-    init(id: UUID = UUID(), name: String = "", allergies: [Allergy] = []) {
+    init(id: UUID = UUID(), name: String = "", location: String = "San Francisco, CA", allergies: [Allergy] = []) {
         self.id = id
         self.name = name
+        self.location = location
         self.allergies = allergies
     }
 }

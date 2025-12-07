@@ -107,20 +107,24 @@ class YelpService: ObservableObject {
     }
     
     func getLocationSuggestions(for query: String) async -> [SearchSuggestion] {
-        guard !query.isEmpty else { return getPopularLocations() }
+        // Always return popular locations if query is empty or matches default
+        let trimmedQuery = query.trimmingCharacters(in: .whitespaces)
+        if trimmedQuery.isEmpty || trimmedQuery == "San Francisco, CA" {
+            return getPopularLocations()
+        }
         
         // Filter popular locations based on query
         let popular = getPopularLocations()
         let filtered = popular.filter { location in
-            location.text.lowercased().contains(query.lowercased())
+            location.text.lowercased().contains(trimmedQuery.lowercased())
         }
         
-        // If no matches, add the query as a suggestion
-        if filtered.isEmpty && !query.isEmpty {
-            return [SearchSuggestion(id: UUID().uuidString, text: query, type: .location)] + popular.prefix(4)
+        // If no matches, add the query as a suggestion and show some popular ones
+        if filtered.isEmpty {
+            return [SearchSuggestion(id: UUID().uuidString, text: trimmedQuery, type: .location)] + Array(popular.prefix(4))
         }
         
-        return filtered.prefix(5)
+        return Array(filtered.prefix(5))
     }
     
     private func getMockRestaurantSuggestions(for query: String) -> [SearchSuggestion] {

@@ -25,6 +25,18 @@ struct ProfileView: View {
                             set: { profileManager.updateName($0) }
                         ))
                         .foregroundColor(Color.appPrimaryText)
+                        
+                        VStack(alignment: .leading, spacing: 8) {
+                            Text("Location")
+                                .font(.caption)
+                                .foregroundColor(Color.appSecondaryText)
+                            
+                            TextField("City, State", text: Binding(
+                                get: { profileManager.profile.location },
+                                set: { profileManager.updateLocation($0) }
+                            ))
+                            .foregroundColor(Color.appPrimaryText)
+                        }
                     }
                     .listRowBackground(Color.appCardBackground)
                     

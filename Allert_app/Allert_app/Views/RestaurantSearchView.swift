@@ -11,23 +11,23 @@ struct RestaurantSearchView: View {
     @EnvironmentObject var profileManager: ProfileManager
     @StateObject private var yelpService = YelpService()
     @State private var searchText = ""
-    @State private var locationText = "San Francisco, CA"
     @State private var restaurants: [Restaurant] = []
     @State private var isLoading = false
     @State private var errorMessage: String?
+    @State private var showChangeLocation = false
+    @State private var tempLocationText = ""
     
     // Suggestion states
     @State private var restaurantSuggestions: [SearchSuggestion] = []
     @State private var locationSuggestions: [SearchSuggestion] = []
     @State private var showRestaurantSuggestions = false
     @State private var showLocationSuggestions = false
-    @State private var focusedField: FieldType? = nil
     @State private var searchTask: Task<Void, Never>? = nil
     @State private var locationTask: Task<Void, Never>? = nil
     
-    enum FieldType {
-        case restaurant
-        case location
+    // Computed property for current location
+    private var currentLocation: String {
+        profileManager.profile.location.isEmpty ? "San Francisco, CA" : profileManager.profile.location
     }
     
     var body: some View {
@@ -36,9 +36,137 @@ struct RestaurantSearchView: View {
                 Color.appBackground.ignoresSafeArea()
                 
                 VStack(spacing: 0) {
+                    // Location Display Section
+                    HStack {
+                        HStack(spacing: 8) {
+                            Image(systemName: "mappin.circle.fill")
+                                .foregroundColor(Color.appGreen)
+                            Text("Searching in: \(currentLocation)")
+                                .font(.subheadline)
+                                .foregroundColor(Color.appSecondaryText)
+                        }
+                        
+                        Spacer()
+                        
+                        Button(action: {
+                            withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
+                                showChangeLocation.toggle()
+                                if showChangeLocation {
+                                    tempLocationText = currentLocation
+                                }
+                            }
+                        }) {
+                            Text(showChangeLocation ? "Cancel" : "Change")
+                                .font(.caption)
+                                .foregroundColor(Color.appGreen)
+                        }
+                    }
+                    .padding(.horizontal)
+                    .padding(.vertical, 8)
+                    
+                    // Change Location Section
+                    if showChangeLocation {
+                        VStack(alignment: .leading, spacing: 0) {
+                            TextField("Enter location", text: $tempLocationText)
+                                .textFieldStyle(.plain)
+                                .padding()
+                                .background(Color.appCardBackground)
+                                .foregroundColor(Color.appPrimaryText)
+                                .cornerRadius(12)
+                                .overlay(
+                                    RoundedRectangle(cornerRadius: 12)
+                                        .stroke(Color.appGreen.opacity(0.3), lineWidth: 1)
+                                )
+                                .onChange(of: tempLocationText) { newValue in
+                                    locationTask?.cancel()
+                                    showLocationSuggestions = true
+                                    locationTask = Task {
+                                        try? await Task.sleep(nanoseconds: 200_000_000)
+                                        if !Task.isCancelled {
+                                            await loadLocationSuggestions(for: newValue)
+                                        }
+                                    }
+                                }
+                                .padding(.horizontal)
+                            
+                            // Location Suggestions
+                            if showLocationSuggestions && !locationSuggestions.isEmpty {
+                                VStack(spacing: 0) {
+                                    ForEach(Array(locationSuggestions.enumerated()), id: \.element.id) { index, suggestion in
+                                        Button(action: {
+                                            withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
+                                                tempLocationText = suggestion.text
+                                                showLocationSuggestions = false
+                                            }
+                                        }) {
+                                            HStack {
+                                                Image(systemName: "mappin.circle.fill")
+                                                    .foregroundColor(Color.appGreen)
+                                                    .font(.caption)
+                                                Text(suggestion.text)
+                                                    .foregroundColor(Color.appPrimaryText)
+                                                Spacer()
+                                            }
+                                            .padding()
+                                            .background(Color.appCardBackground)
+                                        }
+                                        .buttonStyle(PlainButtonStyle())
+                                        
+                                        if suggestion.id != locationSuggestions.last?.id {
+                                            Divider()
+                                                .background(Color.appDarkGray)
+                                        }
+                                    }
+                                }
+                                .background(Color.appCardBackground)
+                                .cornerRadius(12)
+                                .overlay(
+                                    RoundedRectangle(cornerRadius: 12)
+                                        .stroke(Color.appGreen.opacity(0.3), lineWidth: 1)
+                                )
+                                .padding(.horizontal)
+                                .padding(.top, 4)
+                                .shadow(color: .black.opacity(0.3), radius: 8)
+                                .transition(.asymmetric(
+                                    insertion: .move(edge: .top).combined(with: .opacity),
+                                    removal: .move(edge: .top).combined(with: .opacity)
+                                ))
+                                .zIndex(1000)
+                            }
+                            
+                            HStack {
+                                Button("Cancel") {
+                                    withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
+                                        showChangeLocation = false
+                                        tempLocationText = ""
+                                        showLocationSuggestions = false
+                                    }
+                                }
+                                .foregroundColor(Color.appSecondaryText)
+                                
+                                Spacer()
+                                
+                                Button("Save Location") {
+                                    withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
+                                        profileManager.updateLocation(tempLocationText)
+                                        showChangeLocation = false
+                                        tempLocationText = ""
+                                        showLocationSuggestions = false
+                                    }
+                                }
+                                .foregroundColor(Color.appGreen)
+                                .fontWeight(.semibold)
+                            }
+                            .padding(.horizontal)
+                            .padding(.top, 8)
+                        }
+                        .padding(.bottom, 12)
+                        .transition(.opacity.combined(with: .move(edge: .top)))
+                    }
+                    
                     // Search Section
                     VStack(spacing: 12) {
-                        ZStack(alignment: .topLeading) {
+                        VStack(alignment: .leading, spacing: 0) {
                             TextField("Search restaurants...", text: $searchText)
                                 .textFieldStyle(.plain)
                                 .padding()
@@ -47,11 +175,16 @@ struct RestaurantSearchView: View {
                                 .cornerRadius(12)
                                 .overlay(
                                     RoundedRectangle(cornerRadius: 12)
-                                        .stroke(focusedField == .restaurant ? Color.appGreen : Color.appGreen.opacity(0.3), lineWidth: focusedField == .restaurant ? 2 : 1)
+                                        .stroke(showRestaurantSuggestions ? Color.appGreen : Color.appGreen.opacity(0.3), lineWidth: showRestaurantSuggestions ? 2 : 1)
                                 )
                                 .onTapGesture {
-                                    focusedField = .restaurant
                                     showLocationSuggestions = false
+                                    if !searchText.isEmpty {
+                                        showRestaurantSuggestions = true
+                                        Task {
+                                            await loadRestaurantSuggestions()
+                                        }
+                                    }
                                 }
                                 .onChange(of: searchText) { newValue in
                                     // Cancel previous task
@@ -116,97 +249,14 @@ struct RestaurantSearchView: View {
                                         .stroke(Color.appGreen.opacity(0.3), lineWidth: 1)
                                 )
                                 .padding(.horizontal)
-                                .padding(.top, 50)
+                                .padding(.top, 4)
                                 .shadow(color: .black.opacity(0.3), radius: 8)
                                 .transition(.asymmetric(
                                     insertion: .move(edge: .top).combined(with: .opacity),
                                     removal: .move(edge: .top).combined(with: .opacity)
                                 ))
                                 .animation(.spring(response: 0.4, dampingFraction: 0.8), value: showRestaurantSuggestions)
-                            }
-                        }
-                        
-                        ZStack(alignment: .topLeading) {
-                            TextField("Location", text: $locationText)
-                                .textFieldStyle(.plain)
-                                .padding()
-                                .background(Color.appCardBackground)
-                                .foregroundColor(Color.appPrimaryText)
-                                .cornerRadius(12)
-                                .overlay(
-                                    RoundedRectangle(cornerRadius: 12)
-                                        .stroke(focusedField == .location ? Color.appGreen : Color.appGreen.opacity(0.3), lineWidth: focusedField == .location ? 2 : 1)
-                                )
-                                .onTapGesture {
-                                    focusedField = .location
-                                    showRestaurantSuggestions = false
-                                    showLocationSuggestions = true
-                                    if locationSuggestions.isEmpty {
-                                        Task {
-                                            await loadLocationSuggestions()
-                                        }
-                                    }
-                                }
-                                .onChange(of: locationText) { newValue in
-                                    // Cancel previous task
-                                    locationTask?.cancel()
-                                    
-                                    // Always show suggestions for location
-                                    showLocationSuggestions = true
-                                    // Debounce: wait 200ms before loading suggestions
-                                    locationTask = Task {
-                                        try? await Task.sleep(nanoseconds: 200_000_000) // 200ms
-                                        if !Task.isCancelled {
-                                            await loadLocationSuggestions()
-                                        }
-                                    }
-                                }
-                                .padding(.horizontal)
-                            
-                            // Location Suggestions
-                            if showLocationSuggestions && !locationSuggestions.isEmpty {
-                                VStack(spacing: 0) {
-                                    ForEach(Array(locationSuggestions.enumerated()), id: \.element.id) { index, suggestion in
-                                        Button(action: {
-                                            withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
-                                                locationText = suggestion.text
-                                                showLocationSuggestions = false
-                                                focusedField = nil
-                                            }
-                                        }) {
-                                            HStack {
-                                                Image(systemName: "mappin.circle.fill")
-                                                    .foregroundColor(Color.appGreen)
-                                                    .font(.caption)
-                                                Text(suggestion.text)
-                                                    .foregroundColor(Color.appPrimaryText)
-                                                Spacer()
-                                            }
-                                            .padding()
-                                            .background(Color.appCardBackground)
-                                        }
-                                        .buttonStyle(PlainButtonStyle())
-                                        
-                                        if suggestion.id != locationSuggestions.last?.id {
-                                            Divider()
-                                                .background(Color.appDarkGray)
-                                        }
-                                    }
-                                }
-                                .background(Color.appCardBackground)
-                                .cornerRadius(12)
-                                .overlay(
-                                    RoundedRectangle(cornerRadius: 12)
-                                        .stroke(Color.appGreen.opacity(0.3), lineWidth: 1)
-                                )
-                                .padding(.horizontal)
-                                .padding(.top, 50)
-                                .shadow(color: .black.opacity(0.3), radius: 8)
-                                .transition(.asymmetric(
-                                    insertion: .move(edge: .top).combined(with: .opacity),
-                                    removal: .move(edge: .top).combined(with: .opacity)
-                                ))
-                                .animation(.spring(response: 0.4, dampingFraction: 0.8), value: showLocationSuggestions)
+                                .zIndex(1000)
                             }
                         }
                         
@@ -214,7 +264,6 @@ struct RestaurantSearchView: View {
                             withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
                                 showRestaurantSuggestions = false
                                 showLocationSuggestions = false
-                                focusedField = nil
                             }
                             searchRestaurants()
                         }) {
@@ -240,14 +289,6 @@ struct RestaurantSearchView: View {
                         .animation(.spring(response: 0.2, dampingFraction: 0.6), value: isLoading)
                     }
                     .padding(.vertical)
-                    .onTapGesture {
-                        // Hide suggestions when tapping outside
-                        if focusedField != nil {
-                            showRestaurantSuggestions = false
-                            showLocationSuggestions = false
-                            focusedField = nil
-                        }
-                    }
                     
                     // Error Message
                     if let error = errorMessage {
@@ -303,7 +344,7 @@ struct RestaurantSearchView: View {
         
         Task {
             do {
-                let results = try await yelpService.searchRestaurants(query: searchText, location: locationText)
+                let results = try await yelpService.searchRestaurants(query: searchText, location: currentLocation)
                 await MainActor.run {
                     self.restaurants = results
                     self.isLoading = false
@@ -323,16 +364,25 @@ struct RestaurantSearchView: View {
     }
     
     private func loadRestaurantSuggestions() async {
-        let suggestions = await yelpService.getRestaurantSuggestions(for: searchText, location: locationText)
+        let suggestions = await yelpService.getRestaurantSuggestions(for: searchText, location: currentLocation)
         await MainActor.run {
             self.restaurantSuggestions = suggestions
+            // Ensure suggestions are shown if we have results
+            if !suggestions.isEmpty {
+                self.showRestaurantSuggestions = true
+            }
         }
     }
     
-    private func loadLocationSuggestions() async {
-        let suggestions = await yelpService.getLocationSuggestions(for: locationText)
+    private func loadLocationSuggestions(for query: String? = nil) async {
+        let queryText = query ?? tempLocationText
+        let suggestions = await yelpService.getLocationSuggestions(for: queryText)
         await MainActor.run {
             self.locationSuggestions = suggestions
+            // Ensure suggestions are shown if we have results
+            if !suggestions.isEmpty {
+                self.showLocationSuggestions = true
+            }
         }
     }
 }

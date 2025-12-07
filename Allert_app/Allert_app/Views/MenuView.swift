@@ -58,10 +58,8 @@ struct MenuView: View {
                     
                     // AI Analysis Button
                     Button(action: {
-                        withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
-                            Task {
-                                await analyzeMenuItems()
-                            }
+                        Task {
+                            await analyzeMenuItems()
                         }
                     }) {
                         HStack {
