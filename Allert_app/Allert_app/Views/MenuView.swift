@@ -147,6 +147,11 @@ struct MenuView: View {
         .task {
             await loadMenu()
         }
+        .onDisappear {
+            // Reset state when leaving view
+            isAnalyzing = false
+            analysisProgress = 0.0
+        }
     }
     
     private func loadMenu() async {
@@ -162,6 +167,7 @@ struct MenuView: View {
         } catch {
             await MainActor.run {
                 self.isLoading = false
+                // Could add error message display here if needed
             }
         }
     }

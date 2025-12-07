@@ -119,7 +119,8 @@ struct ProfileView: View {
     
     private func deleteAllergies(at offsets: IndexSet) {
         withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) {
-            for index in offsets {
+            // Iterate in reverse order to avoid index shifting issues
+            for index in offsets.sorted(by: >) {
                 profileManager.removeAllergy(profileManager.profile.allergies[index])
             }
         }
